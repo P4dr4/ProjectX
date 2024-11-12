@@ -1,0 +1,6 @@
+[submodule "projectXB"]
+    path = projectXB
+    url = https://github.com/P4dr4/projectXB
+[submodule "projectXF"]
+    path = projectXF
+    url = https://github.com/P4dr4/projectXF
