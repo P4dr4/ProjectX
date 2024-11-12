@@ -67,7 +67,7 @@
         state: started
         restart_policy: always
         ports:
-          - "[::]:4200:80"    # Changed to support IPv6
+          - "[::]:4200:80"
         networks:
           - name: production_network
         env:
