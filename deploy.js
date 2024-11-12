@@ -75,8 +75,8 @@ function deploy() {
 
         console.log('\n✨ Deployment completed successfully!');
         console.log('📌 You can access your services at:');
-        console.log(`   Frontend: http://[2804:14d:8084:acca::1ab2]:4200`);
-        console.log(`   Backend: http://[2804:14d:8084:acca::1ab2]:3000`);
+        console.log(`   Frontend: http://[${envConfig.IPV6_ADDRESS}]:${envConfig.FRONTEND_PORT}`);
+        console.log(`   Backend: http://[${envConfig.IPV6_ADDRESS}]:${envConfig.BACKEND_PORT}`);
     } catch (error) {
         console.error('\n❌ Deployment failed!');
         console.error('Error details:', error.message);

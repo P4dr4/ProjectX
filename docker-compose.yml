@@ -3,10 +3,10 @@ services:
     build:
       context: ./projectXF
       dockerfile: Dockerfile
-    image: pedroaccarini/projectxf:latest
+    image: ${FRONTEND_IMAGE}
     ports:
-      - "0.0.0.0:4200:80"
-      - "[::]:4200:80"
+      - "0.0.0.0:${FRONTEND_PORT}:80"
+      - "[::]:${FRONTEND_PORT}:80"
     networks:
       - production_network
     environment:
@@ -18,10 +18,10 @@ services:
     build:
       context: ./projectXB
       dockerfile: Dockerfile
-    image: pedroaccarini/projectxb:latest
+    image: ${BACKEND_IMAGE}
     ports:
-      - "0.0.0.0:3000:3000"
-      - "[::]:3000:3000"
+      - "0.0.0.0:${BACKEND_PORT}:${BACKEND_PORT}"
+      - "[::]:${BACKEND_PORT}:${BACKEND_PORT}"
     environment:
       - NODE_ENV=production
     networks:

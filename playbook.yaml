@@ -5,10 +5,10 @@
   become_method: sudo
   
   vars:
-    backend_image: pedroaccarini/projectxb:latest
-    frontend_image: pedroaccarini/projectxf:latest
-    backend_port: 3000
-    frontend_port: 4200
+    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
+    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
+    backend_port: "{{ lookup('env', 'BACKEND_PORT') }}"
+    frontend_port: "{{ lookup('env', 'FRONTEND_PORT') }}"
     raspberry_ip: "{{ ansible_host }}"
     nginx_conf: |
       user nginx;
@@ -141,7 +141,7 @@
     
     - name: Log where and if the containers are up and running
       debug:
-        msg: "Containers estão rodando em: Frontend: http://[2804:14d:8084:acca::1ab2]:{{ frontend_port }} Backend: http://[2804:14d:8084:acca::1ab2]:{{ backend_port }}"
+        msg: "Containers estão rodando em: Frontend: http://[{{ lookup('env', 'IPV6_ADDRESS') }}]:{{ frontend_port }} Backend: http://[{{ lookup('env', 'IPV6_ADDRESS') }}]:{{ backend_port }}"
 
     - name: Verify container accessibility
       uri:

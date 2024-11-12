@@ -1,6 +1,6 @@
 {
   "name": "projectx-deployment",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "scripts": {
     "deploy": "node deploy.js"
   },
