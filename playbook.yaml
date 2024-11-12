@@ -10,6 +10,36 @@
     backend_port: 3000
     frontend_port: 4200
     raspberry_ip: "{{ ansible_host }}"
+    nginx_conf: |
+      user nginx;
+      worker_processes auto;
+      error_log /var/log/nginx/error.log warn;
+      pid /var/run/nginx.pid;
+
+      events {
+          worker_connections 1024;
+      }
+
+      http {
+          include /etc/nginx/mime.types;
+          default_type application/octet-stream;
+          
+          # Rate limiting zone definition (moved to http context)
+          limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
+          
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name _;
+              root /usr/share/nginx/html;
+              index index.html;
+              
+              location / {
+                  try_files $uri $uri/ /index.html;
+                  limit_req zone=mylimit burst=20 nodelay;
+              }
+          }
+      }
 
   tasks:
     - name: Install Docker requirements
@@ -43,6 +73,18 @@
         source: pull
         force_source: yes
 
+    - name: Create nginx config directory
+      file:
+        path: /etc/docker/nginx
+        state: directory
+        mode: '0755'
+
+    - name: Create nginx.conf
+      copy:
+        content: "{{ nginx_conf }}"
+        dest: /etc/docker/nginx/nginx.conf
+        mode: '0644'
+
     - name: Deploy backend container on local server Ubuntu
       docker_container:
         name: projectxb
@@ -50,9 +92,11 @@
         state: started
         restart_policy: always
         ports:
-          - "{{ backend_port }}:{{ backend_port }}"
+          - "0.0.0.0:3000:3000"  # Changed to bind to all interfaces
+          - "[::]:3000:3000"      # Keep IPv6 binding
         networks:
           - name: production_network
+        network_mode: "bridge"    # Explicitly set bridge mode
         env:
           NODE_ENV: "production"
         log_driver: json-file
@@ -67,9 +111,13 @@
         state: started
         restart_policy: always
         ports:
-          - "[::]:4200:80"
+          - "0.0.0.0:4200:80"  # Changed to bind to all interfaces
+          - "[::]:4200:80"      # Keep IPv6 binding
+        volumes:
+          - /etc/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
         networks:
           - name: production_network
+        network_mode: "bridge"  # Explicitly set bridge mode
         env:
           NODE_ENV: "production"
           BACKEND_URL: "http://projectxb:3000"
@@ -94,3 +142,15 @@
     - name: Log where and if the containers are up and running
       debug:
         msg: "Containers estão rodando em: Frontend: http://[2804:14d:8084:acca::1ab2]:{{ frontend_port }} Backend: http://[2804:14d:8084:acca::1ab2]:{{ backend_port }}"
+
+    - name: Verify container accessibility
+      uri:
+        url: "http://localhost:4200"
+        method: GET
+        return_content: yes
+      register: health_check
+      ignore_errors: true
+
+    - name: Display container status
+      debug:
+        msg: "Container health check: {{ 'SUCCESS' if health_check.status == 200 else 'FAILED' }}"

@@ -1,8 +1,12 @@
-
 {
   "name": "projectx-deployment",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "scripts": {
     "deploy": "node deploy.js"
+  },
+  "dependencies": {
+    "path": "^0.12.7",
+    "dotenv": "^16.3.1",
+    "child_process": "^1.0.2"
   }
 }

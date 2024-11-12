@@ -1,93 +1,88 @@
 const { execSync } = require('child_process');
 const path = require('path');
+const dotenv = require('dotenv');
 const fs = require('fs');
 
-try {
-    console.log('🚀 Starting Raspberry Pi Deployment...');
-    console.log('📂 Current directory:', __dirname);
-    
-    // Read the .env file
-    const envPath = path.join(__dirname, '.env');
-    console.log('📁 Env file path:', envPath);
-
-    if (!fs.existsSync(envPath)) {
-        throw new Error('.env file not found');
-    }
-
-    const env = fs.readFileSync(envPath, 'utf8');
-
-    // Parse environment variables
-    const envVars = {};
-    env.split('\n').forEach((line) => {
-        const [key, value] = line.split('=');
-        if (key && value) {
-            envVars[key.trim()] = value.trim();
-        }
-    });
-
-    // Debug: Show parsed environment variables
-    console.log('🔑 Parsed environment variables:', envVars);
-
-    // Merge environment variables with process.env
-    const execEnv = {
-        ...process.env,
-        ...envVars
-    };
-
+function isWSL() {
     try {
-        // Create temp file in the current directory
-        const tempFileName = 'temp_env.sh';
-        const tempFilePath = path.join(__dirname, tempFileName);
-        console.log('📄 Creating temp file at:', tempFilePath);
+        const release = fs.readFileSync('/proc/version', 'utf8').toLowerCase();
+        return release.includes('microsoft') || release.includes('wsl');
+    } catch {
+        return false;
+    }
+}
 
-        // Write environment variables with Unix line endings
-        const envContent = Object.entries(envVars)
-            .map(([key, value]) => `export ${key}='${value.replace(/'/g, `'\\''`)}'`)
-            .join('\n');
-        fs.writeFileSync(tempFilePath, envContent.replace(/\r\n/g, '\n'));
-        console.log('✍️  Temp file written successfully at:', tempFilePath);
+function executeCommand(command, options = {}) {
+    console.log('\n📋 Executing command:', command);
+    const start = Date.now();
+    const result = execSync(command, { ...options, encoding: 'utf8' });
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    console.log(`✅ Command completed in ${duration}s\n`);
+    return result;
+}
 
-        // Convert and escape Windows path for WSL
-        const wslPath = __dirname
-            .replace(/^([A-Za-z]):/, (_, letter) => `/mnt/${letter.toLowerCase()}`)
-            .replace(/\\/g, '/')
-            .replace(/ /g, '\\ '); // Escape spaces
-        console.log('🐧 WSL working directory:', wslPath);
+function deployWSL() {
+    const currentPath = process.cwd();
+    const envConfig = dotenv.parse(fs.readFileSync('.env'));
+    const envVarsString = Object.entries(envConfig)
+        .map(([key, value]) => `${key}='${value}'`)
+        .join(' ');
 
-        // Build command with proper escaping
-        const wslCommand = [
-            'cd', `"${wslPath}"`,
-            '&&', 'source', tempFileName,
-            '&&', 'ansible-playbook', '-i', 'hosts', 'playbook.yaml'
-        ].join(' ');
+    console.log('🐧 Deploying using WSL environment');
+    return executeCommand(`${envVarsString} ansible-playbook -i hosts playbook.yaml`, {
+        stdio: 'inherit',
+        cwd: currentPath
+    });
+}
+
+function deployWindows() {
+    const currentPath = process.cwd().replace(/\\/g, '/').replace('C:', '/mnt/c');
+    const envConfig = dotenv.parse(fs.readFileSync('.env'));
+    const envVarsString = Object.entries(envConfig)
+        .map(([key, value]) => `${key}='${value}'`)
+        .join(' ');
+    
+    console.log('🪟 Deploying using Windows environment through WSL');
+    const bashCommand = `cd "${currentPath}" && ${envVarsString} ansible-playbook -i hosts playbook.yaml`;
+    return executeCommand(`wsl -d Ubuntu bash -c "${bashCommand.replace(/"/g, '\\"')}"`, {
+        stdio: 'inherit',
+        cwd: process.cwd()
+    });
+}
+
+function deploy() {
+    try {
+        console.log('🚀 Starting deployment process...');
+        console.log('📁 Working directory:', process.cwd());
         
-        const command = `wsl -d Ubuntu /bin/bash -c "${wslCommand}"`;
-        console.log('🔧 Executing command:', command);
+        // Load and validate environment
+        const envConfig = dotenv.parse(fs.readFileSync('.env'));
+        console.log('🔑 Loaded environment variables:', Object.keys(envConfig).join(', '));
 
-        execSync(command, { 
-            stdio: 'inherit',
-            env: execEnv,
-            shell: true
+        // Check for required files
+        ['hosts', 'playbook.yaml'].forEach(file => {
+            if (!fs.existsSync(file)) {
+                throw new Error(`Required file ${file} not found!`);
+            }
         });
 
-        console.log('🎉 Raspberry Pi Deployment completed successfully!');
-    } finally {
-        // Cleanup
-        const tempFilePath = path.join(__dirname, 'temp_env.sh');
-        if (fs.existsSync(tempFilePath)) {
-            fs.unlinkSync(tempFilePath);
-            console.log('🧹 Temp file cleaned up');
+        // Execute deployment based on environment
+        if (isWSL()) {
+            deployWSL();
+        } else {
+            deployWindows();
         }
+
+        console.log('\n✨ Deployment completed successfully!');
+        console.log('📌 You can access your services at:');
+        console.log(`   Frontend: http://[2804:14d:8084:acca::1ab2]:4200`);
+        console.log(`   Backend: http://[2804:14d:8084:acca::1ab2]:3000`);
+    } catch (error) {
+        console.error('\n❌ Deployment failed!');
+        console.error('Error details:', error.message);
+        process.exit(1);
     }
-    
-} catch (error) {
-    console.error('❌ Raspberry Pi Deployment failed');
-    console.error('🔍 Error details:', {
-        message: error.message,
-        code: error.code,
-        path: error.path,
-        command: error.cmd,
-        status: error.status
-    });
-    process.exit(1);
 }
+
+// Execute deployment
+deploy();

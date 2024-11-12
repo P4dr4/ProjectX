@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     image: pedroaccarini/projectxf:latest
     ports:
+      - "0.0.0.0:4200:80"
       - "[::]:4200:80"
     networks:
       - production_network
@@ -19,6 +20,7 @@ services:
       dockerfile: Dockerfile
     image: pedroaccarini/projectxb:latest
     ports:
+      - "0.0.0.0:3000:3000"
       - "[::]:3000:3000"
     environment:
       - NODE_ENV=production
