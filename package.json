@@ -2,7 +2,9 @@
   "name": "projectx-deployment",
   "version": "0.4.0",
   "scripts": {
-    "deploy": "node deploy.js"
+    "deploy": "node deploy.js",
+    "docker-compose:build": "docker-compose up --build",
+    "docker-compose:push": "docker-compose push"    
   },
   "dependencies": {
     "path": "^0.12.7",
