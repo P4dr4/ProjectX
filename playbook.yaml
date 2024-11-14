@@ -1,96 +1,67 @@
 ---
-- name: Docker Container Deployment
+
+- name: Build and Push Docker Images
   hosts: raspberry
-  become: true
-  become_method: sudo
-  
+
   vars:
-    backend_image: pedroaccarini/projectxb:latest
-    frontend_image: pedroaccarini/projectxf:latest
-    backend_port: 3000
-    frontend_port: 4200
-    raspberry_ip: "{{ ansible_host }}"
+    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
+    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
 
   tasks:
-    - name: Install Docker requirements
-      apt:
-        name:
-          - docker.io
-          - python3-docker
-        state: present
-        update_cache: yes
-
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
+    - name: Build the backend image
+      docker_image:
+        build: ./projectXB
+        name: "{{ backend_image }}"
+        tag: latest
+    
+    - name: Build the frontend image
+      docker_image:
+        build: ./projectXF
+        name: "{{ frontend_image }}"
+        tag: latest
 
     - name: Create Docker network
       docker_network:
-        name: production_network
+        name: app-network
         state: present
-
-    - name: Pull backend image
-      docker_image:
-        name: "{{ backend_image }}"
-        source: pull
-        force_source: yes
-
-    - name: Pull frontend image
-      docker_image:
-        name: "{{ frontend_image }}"
-        source: pull
-        force_source: yes
-
-    - name: Deploy backend container on local server Ubuntu
+        driver: bridge
+    
+    - name: Activate Container Backend
       docker_container:
-        name: projectxb
+        name: projectxb_container
         image: "{{ backend_image }}"
         state: started
-        restart_policy: always
-        ports:
-          - "{{ backend_port }}:{{ backend_port }}"
         networks:
-          - name: production_network
-        env:
-          NODE_ENV: "production"
-        log_driver: json-file
-        log_options:
-          max-size: 10m
-          max-file: "3"
+          - name: app-network
+        ports:
+          - "0.0.0.0:3000:3000"
 
-    - name: Deploy frontend container on local server Ubuntu
+    - name: Activate Container Frontend
       docker_container:
-        name: projectxf
+        name: projectxf_container
         image: "{{ frontend_image }}"
         state: started
-        restart_policy: always
-        ports:
-          - "[::]:4200:80"    # Changed to support IPv6
         networks:
-          - name: production_network
+          - name: app-network
+        ports:
+          - "0.0.0.0:4200:4200"
         env:
-          NODE_ENV: "production"
-          BACKEND_URL: "http://projectxb:3000"
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost/"]
-          interval: 30s
-          timeout: 3s
-          retries: 3
-          start_period: 10s
-        log_driver: json-file
-        log_options:
-          max-size: 10m
-          max-file: "3"
+          BACKEND_URL: "http://backend:3000"
     
-    - name: Wait for the containers to be up
+    - name: Wait for the backend to start
       wait_for:
-        host: localhost
-        port: "{{ backend_port }}"
+        host: http://backend:3000
+        port: 3000
         delay: 5
         timeout: 60
     
-    - name: Log where and if the containers are up and running
+    - name: Wait for the frontend to start
+      wait_for:
+        host: http://frontend:4200
+        port: 4200
+        delay: 5
+        timeout: 60
+    
+    - name: Log status of the containers / ip of the containers and ports / network
       debug:
-        msg: "Containers estão rodando em: Frontend: http://[2804:14d:8084:acca::1ab2]:{{ frontend_port }} Backend: http://[2804:14d:8084:acca::1ab2]:{{ backend_port }}"
+        msg: "Backend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:3000 Frontend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:4200 Network: app-network"

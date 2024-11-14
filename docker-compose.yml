@@ -1,34 +1,26 @@
 services:
   frontend:
-    build:
-      context: ./projectXF
-      dockerfile: Dockerfile
-    image: pedroaccarini/projectxf:latest
+    container_name: projectxf_container
+    build: ./projectXF
+    image: ${FRONTEND_IMAGE}
     ports:
-      - "[::]:4200:80"
-    networks:
-      - production_network
-    environment:
-      - BACKEND_URL=http://backend:3000
+      - '0.0.0.0:4200:4200'
     depends_on:
       - backend
+    environment:
+      - BACKEND_URL=http://backend:3000
+    networks:
+      - app-network
 
   backend:
-    build:
-      context: ./projectXB
-      dockerfile: Dockerfile
-    image: pedroaccarini/projectxb:latest
+    container_name: projectxb_container
+    build: ./projectXB
+    image: ${BACKEND_IMAGE}
     ports:
-      - "[::]:3000:3000"
-    environment:
-      - NODE_ENV=production
+      - '0.0.0.0:3000:3000'
     networks:
-      - production_network
+      - app-network
 
 networks:
-  production_network:
+  app-network:
     driver: bridge
-    enable_ipv6: true
-    ipam:
-      config:
-        - subnet: fd00::/80

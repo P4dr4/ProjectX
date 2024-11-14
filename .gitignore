@@ -1,0 +1,7 @@
+# Sensitive or high-level files
+
+*.env
+node_modules
+package-lock.json
+dist
+ansible-env

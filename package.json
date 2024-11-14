@@ -1,0 +1,14 @@
+{
+  "name": "projectx-deployment",
+  "version": "0.4.0",
+  "scripts": {
+    "deploy": "node deploy.js",
+    "docker-compose:build": "docker-compose up --build",
+    "docker-compose:push": "docker-compose push"    
+  },
+  "dependencies": {
+    "path": "^0.12.7",
+    "dotenv": "^16.3.1",
+    "child_process": "^1.0.2"
+  }
+}
