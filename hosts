@@ -1,4 +1,8 @@
-# Ansible inventory file with Ansible command (run: export $(cat .env | xargs) && ansible-playbook -i hosts playbook.yaml)
+# Ansible inventory file
 
 [raspberry]
-192.168.0.41 ansible_user=friday ansible_connection=ssh ansible_password="{{ lookup('env', 'FRIDAY_PASS') }}" ansible_become_password="{{ lookup('env', 'BECOME_PASS') }}" ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+{{ lookup('env', 'RASPBERRY_IP') }} ansible_user=friday 
+                                   ansible_connection=ssh 
+                                   ansible_password="{{ lookup('env', 'FRIDAY_PASS') }}" 
+                                   ansible_become_password="{{ lookup('env', 'BECOME_PASS') }}" 
+                                   ansible_ssh_common_args='-o StrictHostKeyChecking=no'

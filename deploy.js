@@ -1,88 +1,25 @@
-const { execSync } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
-const dotenv = require('dotenv');
-const fs = require('fs');
 
-function isWSL() {
-    try {
-        const release = fs.readFileSync('/proc/version', 'utf8').toLowerCase();
-        return release.includes('microsoft') || release.includes('wsl');
-    } catch {
-        return false;
-    }
-}
+// Get the absolute path to ansible-playbook in the virtual environment
+const ansiblePath = path.resolve(__dirname, 'ansible-env', 'Scripts', 'ansible-playbook.exe');
 
-function executeCommand(command, options = {}) {
-    console.log('\n📋 Executing command:', command);
-    const start = Date.now();
-    const result = execSync(command, { ...options, encoding: 'utf8' });
-    const duration = ((Date.now() - start) / 1000).toFixed(2);
-    console.log(`✅ Command completed in ${duration}s\n`);
-    return result;
-}
+// Set environment variables
+const env = {
+    ...process.env,
+    ANSIBLE_PYTHON_INTERPRETER: path.resolve(__dirname, 'ansible-env', 'Scripts', 'python.exe'),
+};
 
-function deployWSL() {
-    const currentPath = process.cwd();
-    const envConfig = dotenv.parse(fs.readFileSync('.env'));
-    const envVarsString = Object.entries(envConfig)
-        .map(([key, value]) => `${key}='${value}'`)
-        .join(' ');
-
-    console.log('🐧 Deploying using WSL environment');
-    return executeCommand(`${envVarsString} ansible-playbook -i hosts playbook.yaml`, {
-        stdio: 'inherit',
-        cwd: currentPath
-    });
-}
-
-function deployWindows() {
-    const currentPath = process.cwd().replace(/\\/g, '/').replace('C:', '/mnt/c');
-    const envConfig = dotenv.parse(fs.readFileSync('.env'));
-    const envVarsString = Object.entries(envConfig)
-        .map(([key, value]) => `${key}='${value}'`)
-        .join(' ');
-    
-    console.log('🪟 Deploying using Windows environment through WSL');
-    const bashCommand = `cd "${currentPath}" && ${envVarsString} ansible-playbook -i hosts playbook.yaml`;
-    return executeCommand(`wsl -d Ubuntu bash -c "${bashCommand.replace(/"/g, '\\"')}"`, {
-        stdio: 'inherit',
-        cwd: process.cwd()
-    });
-}
-
-function deploy() {
-    try {
-        console.log('🚀 Starting deployment process...');
-        console.log('📁 Working directory:', process.cwd());
-        
-        // Load and validate environment
-        const envConfig = dotenv.parse(fs.readFileSync('.env'));
-        console.log('🔑 Loaded environment variables:', Object.keys(envConfig).join(', '));
-
-        // Check for required files
-        ['hosts', 'playbook.yaml'].forEach(file => {
-            if (!fs.existsSync(file)) {
-                throw new Error(`Required file ${file} not found!`);
-            }
-        });
-
-        // Execute deployment based on environment
-        if (isWSL()) {
-            deployWSL();
-        } else {
-            deployWindows();
+// Execute ansible-playbook with proper configuration
+exec(`"${ansiblePath}" -i hosts playbook.yaml`, 
+    { env },
+    (error, stdout, stderr) => {
+        if (stdout) console.log(stdout);
+        if (stderr) console.error(stderr);
+        if (error) {
+            console.error(`Error: ${error}`);
+            process.exit(1);
         }
-
-        console.log('\n✨ Deployment completed successfully!');
-        console.log('📌 You can access your services at:');
-        console.log(`   Frontend: http://[${envConfig.IPV6_ADDRESS}]:${envConfig.FRONTEND_PORT}`);
-        console.log(`   Backend: http://[${envConfig.IPV6_ADDRESS}]:${envConfig.BACKEND_PORT}`);
-    } catch (error) {
-        console.error('\n❌ Deployment failed!');
-        console.error('Error details:', error.message);
-        process.exit(1);
     }
-}
+);
 
-// Execute deployment
-deploy();

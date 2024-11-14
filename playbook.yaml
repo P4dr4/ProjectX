@@ -1,210 +1,67 @@
 ---
+
 - name: Build and Push Docker Images
   hosts: raspberry
+
   vars:
     backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
     frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
-  tasks:
-    - name: Remove old Docker versions
-      apt:
-        name: 
-          - docker.io
-          - docker
-          - containerd
-        state: absent
-        purge: yes
-      become: true
-
-    - name: Install prerequisites for Docker
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - gnupg-agent
-          - software-properties-common
-        state: present
-        update_cache: yes
-      become: true
-
-    - name: Add Docker's official GPG key
-      apt_key:
-        url: https://download.docker.com/linux/debian/gpg
-        state: present
-      become: true
-
-    - name: Add Docker repository
-      apt_repository:
-        repo: "deb [arch=arm64] https://download.docker.com/linux/debian {{ ansible_distribution_release | lower }} stable"
-        state: present
-      become: true
-
-    - name: Install Docker Engine
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-        state: latest
-        update_cache: yes
-      become: true
-
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Install Docker Buildx as a global CLI plugin
-      shell: |
-        mkdir -p /usr/lib/docker/cli-plugins/
-        curl -sSL https://github.com/docker/buildx/releases/latest/download/buildx-linux-arm64 -o /usr/lib/docker/cli-plugins/docker-buildx
-        chmod +x /usr/lib/docker/cli-plugins/docker-buildx
-      args:
-        creates: /usr/lib/docker/cli-plugins/docker-buildx
-      become: true
-
-    - name: Verify Docker Buildx installation
-      shell: docker buildx version
-      register: buildx_version
-      changed_when: false
-
-    - name: Display Docker Buildx version
-      debug:
-        msg: "Docker Buildx Version: {{ buildx_version.stdout }}"
-
-    - name: Build and Push Backend Image
-      shell: |
-        docker buildx create --use
-        docker buildx build --platform linux/amd64,linux/arm64 \
-          -t {{ backend_image }} \
-          -f projectXB/Dockerfile \
-          projectXB/ \
-          --push
-      args:
-        chdir: "{{ playbook_dir }}"
-      environment:
-        DOCKER_BUILDKIT: "1"
-
-    - name: Build and Push Frontend Image
-      shell: |
-        docker buildx create --use
-        docker buildx build --platform linux/amd64,linux/arm64 \
-          -t {{ frontend_image }} \
-          -f projectXF/Dockerfile \
-          projectXF/ \
-          --push
-      args:
-        chdir: "{{ playbook_dir }}"
-      environment:
-        DOCKER_BUILDKIT: "1"
-
-- name: Docker Container Deployment
-  hosts: raspberry
-  become: true
-  become_method: sudo
-  
-  vars:
-    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
-    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
-    backend_port: 3000
-    frontend_port: 4200
-    raspberry_ip: "{{ ansible_host }}"
 
   tasks:
-    - name: Install Docker requirements
-      apt:
-        name:
-          - docker.io
-          - python3-docker
-        state: present
-        update_cache: yes
-
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
+    - name: Build the backend image
+      docker_image:
+        build: ./projectXB
+        name: "{{ backend_image }}"
+        tag: latest
+    
+    - name: Build the frontend image
+      docker_image:
+        build: ./projectXF
+        name: "{{ frontend_image }}"
+        tag: latest
 
     - name: Create Docker network
       docker_network:
-        name: production_network
+        name: app-network
         state: present
-
-    - name: Pull backend image
-      docker_image:
-        name: "{{ backend_image }}"
-        source: pull
-        force_source: yes
-
-    - name: Pull frontend image
-      docker_image:
-        name: "{{ frontend_image }}"
-        source: pull
-        force_source: yes
-
-    - name: Deploy backend container on local server Ubuntu
+        driver: bridge
+    
+    - name: Activate Container Backend
       docker_container:
-        name: projectxb
+        name: projectxb_container
         image: "{{ backend_image }}"
         state: started
-        restart_policy: always
-        ports:
-          - "3000:3000"
         networks:
-          - name: production_network
-        network_mode: "bridge"
-        env:
-          NODE_ENV: "production"
-        log_driver: json-file
-        log_options:
-          max-size: 10m
-          max-file: "3"
+          - name: app-network
+        ports:
+          - "0.0.0.0:3000:3000"
 
-    - name: Deploy frontend container on local server Ubuntu
+    - name: Activate Container Frontend
       docker_container:
-        name: projectxf
+        name: projectxf_container
         image: "{{ frontend_image }}"
         state: started
-        restart_policy: always
-        ports:
-          - "4200:80"
         networks:
-          - name: production_network
-        network_mode: "bridge"
+          - name: app-network
+        ports:
+          - "0.0.0.0:4200:4200"
         env:
-          NODE_ENV: "production"
-          BACKEND_URL: "http://localhost:3000"
-        healthcheck:
-          test: ["CMD", "curl", "-f", "http://localhost/"]
-          interval: 30s
-          timeout: 3s
-          retries: 3
-          start_period: 10s
-        log_driver: json-file
-        log_options:
-          max-size: 10m
-          max-file: "3"
+          BACKEND_URL: "http://backend:3000"
     
-    - name: Wait for the containers to be up
+    - name: Wait for the backend to start
       wait_for:
-        host: localhost
-        port: "{{ backend_port }}"
+        host: http://backend:3000
+        port: 3000
         delay: 5
         timeout: 60
     
-    - name: Log where and if the containers are up and running
+    - name: Wait for the frontend to start
+      wait_for:
+        host: http://frontend:4200
+        port: 4200
+        delay: 5
+        timeout: 60
+    
+    - name: Log status of the containers / ip of the containers and ports / network
       debug:
-        msg: "Containers estão rodando em: Frontend: http://[{{ lookup('env', 'IPV6_ADDRESS') }}]:{{ frontend_port }} Backend: http://[{{ lookup('env', 'IPV6_ADDRESS') }}]:{{ backend_port }}"
-
-    - name: Verify container accessibility
-      uri:
-        url: "http://localhost:4200"
-        method: GET
-        return_content: yes
-      register: health_check
-      ignore_errors: true
-
-    - name: Display container status
-      debug:
-        msg: "Container health check: {{ 'SUCCESS' if health_check.status == 200 else 'FAILED' }}"
+        msg: "Backend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:3000 Frontend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:4200 Network: app-network"
