@@ -2,10 +2,21 @@
 
 - name: Build and Push Docker Images
   hosts: raspberry
+  become: true
 
   vars:
     backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
     frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
+
+  pre_tasks:
+    - name: Install required packages
+      apt:
+        name: 
+          - python3
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
 
   tasks:
     - name: Create ProjectX folder
