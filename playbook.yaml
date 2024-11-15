@@ -1,12 +1,12 @@
 ---
-
-- name: Build and Push Docker Images
+- name: Deploy ProjectX on Raspberry
   hosts: raspberry
   become: true
 
   vars:
-    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
-    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
+    project_dir: /projectX
+    FRONTEND_IMAGE: pedroaccarini/projectxf:latest
+    BACKEND_IMAGE: pedroaccarini/projectxb:latest
 
   pre_tasks:
     - name: Install required packages
@@ -19,35 +19,26 @@
         update_cache: yes
 
   tasks:
-    - name: Create ProjectX folder
-      command: mkdir -p /projectX && cd /projectX 
+    - name: Create ProjectX directory
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: '0755'
 
-    - name: Clone ProjectX
+    - name: Clone ProjectX repository
       git:
-        repo: https://github.com/P4dr4/ProjectX.git
-        dest: /projectX
+        repo: "https://github.com/P4dr4/projectX.git"
+        dest: "{{ project_dir }}"
+        force: yes
 
-    # - name: Clone ProjextXB
-    #   git:
-    #     repo: https://github.com/P4dr4/projectXB.git
-    #     dest: projectX/projectXB
-    
-    # - name: Clone ProjextXF
-    #   git:
-    #     repo: https://github.com/P4dr4/projectXF.git
-    #     dest: /projectX/projectXF
-
-    - name: Build Backend Image
-      command: docker build -t {{ backend_image }} /projectX/projectXB
-      args:
-        chdir: /projectX/projectXB
-
-    - name: Build Frontend Image
-      command: docker build -t {{ frontend_image }} /projectX/projectXF
-      args:
-        chdir: /projectX/projectXF
-    
     - name: Docker-Compose Up
-      command: docker-compose -f /projectX/docker-compose.yml up -d
+      command: docker-compose up -d
       args:
-        chdir: /projectX
+        chdir: "{{ project_dir }}"
+      environment:
+        FRONTEND_IMAGE: "{{ FRONTEND_IMAGE }}"
+        BACKEND_IMAGE: "{{ BACKEND_IMAGE }}"
+    
+    - name: Log where the files are
+      debug:
+        msg: "ProjectX files are in {{ project_dir }}"

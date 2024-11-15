@@ -1,7 +1,0 @@
-ansible_user: friday
-ansible_password: "{{ lookup('env', 'FRIDAY_PASS') }}"
-ansible_become_password: "{{ lookup('env', 'BECOME_PASS') }}"
-ansible_become: true
-ansible_connection: ssh
-ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-ansible_host: "{{ lookup('env', 'RASPBERRY_IP') }}"
