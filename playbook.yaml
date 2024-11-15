@@ -26,9 +26,6 @@
     #     repo: https://github.com/P4dr4/projectXF.git
     #     dest: /projectX/projectXF
 
-    - name: Docker Login
-      command: docker login -u {{ lookup('env', 'DOCKER_USERNAME') }} -p {{ lookup('env', 'DOCKER_PASSWORD') }}    
-
     - name: Build Backend Image
       command: docker build -t {{ backend_image }} /projectX/projectXB
       args:
