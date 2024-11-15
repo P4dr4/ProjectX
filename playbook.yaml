@@ -8,60 +8,38 @@
     frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
 
   tasks:
-    - name: Build the backend image
-      docker_image:
-        build: ./projectXB
-        name: "{{ backend_image }}"
-        tag: latest
-    
-    - name: Build the frontend image
-      docker_image:
-        build: ./projectXF
-        name: "{{ frontend_image }}"
-        tag: latest
+    - name: Create ProjectX folder
+      command: mkdir -p /projectX && cd /projectX 
 
-    - name: Create Docker network
-      docker_network:
-        name: app-network
-        state: present
-        driver: bridge
-    
-    - name: Activate Container Backend
-      docker_container:
-        name: projectxb_container
-        image: "{{ backend_image }}"
-        state: started
-        networks:
-          - name: app-network
-        ports:
-          - "0.0.0.0:3000:3000"
+    - name: Clone ProjectX
+      git:
+        repo: https://github.com/P4dr4/ProjectX.git
+        dest: /projectX
 
-    - name: Activate Container Frontend
-      docker_container:
-        name: projectxf_container
-        image: "{{ frontend_image }}"
-        state: started
-        networks:
-          - name: app-network
-        ports:
-          - "0.0.0.0:4200:4200"
-        env:
-          BACKEND_URL: "http://backend:3000"
+    # - name: Clone ProjextXB
+    #   git:
+    #     repo: https://github.com/P4dr4/projectXB.git
+    #     dest: projectX/projectXB
     
-    - name: Wait for the backend to start
-      wait_for:
-        host: http://backend:3000
-        port: 3000
-        delay: 5
-        timeout: 60
+    # - name: Clone ProjextXF
+    #   git:
+    #     repo: https://github.com/P4dr4/projectXF.git
+    #     dest: /projectX/projectXF
+
+    - name: Docker Login
+      command: docker login -u {{ lookup('env', 'DOCKER_USERNAME') }} -p {{ lookup('env', 'DOCKER_PASSWORD') }}    
+
+    - name: Build Backend Image
+      command: docker build -t {{ backend_image }} /projectX/projectXB
+      args:
+        chdir: /projectX/projectXB
+
+    - name: Build Frontend Image
+      command: docker build -t {{ frontend_image }} /projectX/projectXF
+      args:
+        chdir: /projectX/projectXF
     
-    - name: Wait for the frontend to start
-      wait_for:
-        host: http://frontend:4200
-        port: 4200
-        delay: 5
-        timeout: 60
-    
-    - name: Log status of the containers / ip of the containers and ports / network
-      debug:
-        msg: "Backend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:3000 Frontend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:4200 Network: app-network"
+    - name: Docker-Compose Up
+      command: docker-compose -f /projectX/docker-compose.yml up -d
+      args:
+        chdir: /projectX
