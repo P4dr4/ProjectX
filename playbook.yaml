@@ -37,13 +37,9 @@
         chdir: "{{ project_dir }}"
 
     - name: Docker-Compose Up
-      command: docker-compose up -d --env-file .env
+      command: docker-compose up -d
       args:
         chdir: "{{ project_dir }}"
       environment:
         FRONTEND_IMAGE: "{{ FRONTEND_IMAGE }}"
         BACKEND_IMAGE: "{{ BACKEND_IMAGE }}"
-    
-    - name: Log where the files are
-      debug:
-        msg: "ProjectX files are in {{ project_dir }}"
