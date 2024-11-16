@@ -31,8 +31,13 @@
         dest: "{{ project_dir }}"
         force: yes
 
+    - name: Docker-Compose Build
+      command: docker-compose build --env-file .env
+      args:
+        chdir: "{{ project_dir }}"
+
     - name: Docker-Compose Up
-      command: docker-compose up -d
+      command: docker-compose up -d --env-file .env
       args:
         chdir: "{{ project_dir }}"
       environment:
