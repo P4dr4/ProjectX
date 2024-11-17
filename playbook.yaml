@@ -7,6 +7,7 @@
     project_dir: /projectX
     FRONTEND_IMAGE: pedroaccarini/projectxf:latest
     BACKEND_IMAGE: pedroaccarini/projectxb:latest
+    MONGO_IMAGE: mongo:latest
 
   pre_tasks:
     - name: Install required packages
@@ -43,3 +44,4 @@
       environment:
         FRONTEND_IMAGE: "{{ FRONTEND_IMAGE }}"
         BACKEND_IMAGE: "{{ BACKEND_IMAGE }}"
+        MONGO_IMAGE: "{{ MONGO_IMAGE }}"
