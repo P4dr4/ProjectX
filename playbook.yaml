@@ -8,40 +8,32 @@
     FRONTEND_IMAGE: pedroaccarini/projectxf:latest
     BACKEND_IMAGE: pedroaccarini/projectxb:latest
     MONGO_IMAGE: mongo:latest
-
-  pre_tasks:
-    - name: Install required packages
+  
+  tasks:
+    - name: Update apt cache
       apt:
-        name: 
-          - python3
-          - docker.io
-          - docker-compose
-        state: present
         update_cache: yes
 
-  tasks:
-    - name: Create ProjectX directory
+    - name: Install necessary packages
+      apt:
+        name:
+          - docker.io
+          - python3-pip
+          - python3-setuptools
+          - git
+        state: present
+    
+    - name: Create project directory
       file:
         path: "{{ project_dir }}"
         state: directory
-        mode: '0755'
 
-    - name: Clone ProjectX repository
+    - name: Clone project repository of ProjectX
       git:
-        repo: "https://github.com/P4dr4/projectX.git"
+        repo: https://github.com/P4dr4/ProjectX.git
         dest: "{{ project_dir }}"
-        force: yes
 
-    - name: Docker-Compose Build
-      command: docker-compose build --env-file .env
+    - name: Run docker-compose up -d
+      command: docker-compose -f "{{ project_dir }}/docker-compose.yml" up -d
       args:
         chdir: "{{ project_dir }}"
-
-    - name: Docker-Compose Up
-      command: docker-compose up -d
-      args:
-        chdir: "{{ project_dir }}"
-      environment:
-        FRONTEND_IMAGE: "{{ FRONTEND_IMAGE }}"
-        BACKEND_IMAGE: "{{ BACKEND_IMAGE }}"
-        MONGO_IMAGE: "{{ MONGO_IMAGE }}"
