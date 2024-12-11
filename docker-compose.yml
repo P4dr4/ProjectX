@@ -1,14 +1,12 @@
+name: projectx
+
 services:
   frontend:
     container_name: projectxf_container
     build: ./projectXF
     image: ${FRONTEND_IMAGE}
     ports:
-      - '0.0.0.0:4200:4200'
-    depends_on:
-      - backend
-    environment:
-      - BACKEND_URL=http://backend:3000
+      - '0.0.0.0:80:80'
     networks:
       - app-network
 
@@ -20,6 +18,11 @@ services:
       - '0.0.0.0:3000:3000'
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 networks:
   app-network:

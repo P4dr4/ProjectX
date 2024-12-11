@@ -1,67 +1,45 @@
 ---
-
-- name: Build and Push Docker Images
+- name: Deploy ProjectX on Raspberry
   hosts: raspberry
+  become: true
 
   vars:
-    backend_image: "{{ lookup('env', 'BACKEND_IMAGE') }}"
-    frontend_image: "{{ lookup('env', 'FRONTEND_IMAGE') }}"
+    project_dir: /projectX
+    FRONTEND_IMAGE: pedroaccarini/projectxf:latest
+    BACKEND_IMAGE: pedroaccarini/projectxb:latest
+
+  pre_tasks:
+    - name: Install required packages
+      apt:
+        name: 
+          - python3
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
 
   tasks:
-    - name: Build the backend image
-      docker_image:
-        build: ./projectXB
-        name: "{{ backend_image }}"
-        tag: latest
-    
-    - name: Build the frontend image
-      docker_image:
-        build: ./projectXF
-        name: "{{ frontend_image }}"
-        tag: latest
+    - name: Create ProjectX directory
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: '0755'
 
-    - name: Create Docker network
-      docker_network:
-        name: app-network
-        state: present
-        driver: bridge
-    
-    - name: Activate Container Backend
-      docker_container:
-        name: projectxb_container
-        image: "{{ backend_image }}"
-        state: started
-        networks:
-          - name: app-network
-        ports:
-          - "0.0.0.0:3000:3000"
+    - name: Clone ProjectX repository
+      git:
+        repo: "https://github.com/P4dr4/projectX.git"
+        dest: "{{ project_dir }}"
+        force: yes
 
-    - name: Activate Container Frontend
-      docker_container:
-        name: projectxf_container
-        image: "{{ frontend_image }}"
-        state: started
-        networks:
-          - name: app-network
-        ports:
-          - "0.0.0.0:4200:4200"
-        env:
-          BACKEND_URL: "http://backend:3000"
-    
-    - name: Wait for the backend to start
-      wait_for:
-        host: http://backend:3000
-        port: 3000
-        delay: 5
-        timeout: 60
-    
-    - name: Wait for the frontend to start
-      wait_for:
-        host: http://frontend:4200
-        port: 4200
-        delay: 5
-        timeout: 60
-    
-    - name: Log status of the containers / ip of the containers and ports / network
-      debug:
-        msg: "Backend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:3000 Frontend: http://{{ hostvars['raspberry']['ansible_default_ipv4']['address'] }}:4200 Network: app-network"
+    - name: Docker-Compose Build
+      command: docker-compose build --env-file .env
+      args:
+        chdir: "{{ project_dir }}"
+
+    - name: Docker-Compose Up
+      command: docker-compose up -d
+      args:
+        chdir: "{{ project_dir }}"
+      environment:
+        FRONTEND_IMAGE: "{{ FRONTEND_IMAGE }}"
+        BACKEND_IMAGE: "{{ BACKEND_IMAGE }}"

@@ -1,25 +1,14 @@
-const { exec } = require('child_process');
+const { execSync } = require('child_process');
 const path = require('path');
+require('dotenv').config();
 
-// Get the absolute path to ansible-playbook in the virtual environment
-const ansiblePath = path.resolve(__dirname, 'ansible-env', 'Scripts', 'ansible-playbook.exe');
+try {
+    const command = 'ansible-playbook playbook.yaml -i hosts';
 
-// Set environment variables
-const env = {
-    ...process.env,
-    ANSIBLE_PYTHON_INTERPRETER: path.resolve(__dirname, 'ansible-env', 'Scripts', 'python.exe'),
-};
-
-// Execute ansible-playbook with proper configuration
-exec(`"${ansiblePath}" -i hosts playbook.yaml`, 
-    { env },
-    (error, stdout, stderr) => {
-        if (stdout) console.log(stdout);
-        if (stderr) console.error(stderr);
-        if (error) {
-            console.error(`Error: ${error}`);
-            process.exit(1);
-        }
-    }
-);
-
+    console.log('Starting deployment...');
+    execSync(command, { stdio: 'inherit', shell: true });
+    console.log('Deployment completed successfully!');
+} catch (error) {
+    console.error('Deployment failed:', error.message);
+    process.exit(1);
+}
