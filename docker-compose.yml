@@ -1,10 +1,10 @@
-name: projectx
+name: ProjectX
 
 services:
   frontend:
     container_name: projectxf_container
     build: ./projectXF
-    image: ${FRONTEND_IMAGE}
+    image: pedroaccarini/projectxf:latest
     ports:
       - '0.0.0.0:80:80'
     networks:
@@ -13,40 +13,33 @@ services:
   backend:
     container_name: projectxb_container
     build: ./projectXB
-    image: ${BACKEND_IMAGE}
+    image: pedroaccarini/projectxb:latest
     ports:
       - '0.0.0.0:3000:3000'
     networks:
       - app-network
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/projectx
+      - NODE_ENV=development
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    environment:
-      - MONGO_URL=mongodb://mongodb:27017/projectx
 
-  mongodb:
+  mongo:
+    container_name: mongo_container
     image: mongo:latest
-    container_name: mongodb_container
     ports:
-      - '27017:27017'
-    volumes:
-      - mongo-data:/data/db
+      - '0.0.0.0:27017:27017'
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
       retries: 5
 
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  mongo-data:
