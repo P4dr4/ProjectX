@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/newX
 
 jobs:
   build:
@@ -29,15 +28,3 @@ jobs:
           echo "Version: $version"
           git tag -a $version -m "Release $version"
           git push origin $version
-
-      - name: Call Chat GPT2
-        id: call_chat_gpt2
-        run: |
-          curl -X POST -H "Content-Type: application/json" -d '{"version": $version}' https://chat-gpt2-api.herokuapp.com
-          response-npm_intall = $(npm install)
-
-          if [ $response-npm_intall -ne 0 ]; then
-            $chat-gpt-response = curl -X POST -H "Content-Type: application/json" -d '{"error": $response-npm_intall}' https://chat-gpt2-api.herokuapp.com
-          fi
-
-          echo "Chat GPT2 API Response: $chat-gpt-response"
